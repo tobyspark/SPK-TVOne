@@ -142,6 +142,7 @@ void SPKTVOne::setCustomResolutions()
 {
   set1920x480(kTV1ResolutionTripleHeadVGAp60);
   set1600x600(kTV1ResolutionDualHeadSVGAp60);
+  set2048x768(kTV1ResolutionDualHeadXGAp60);
 }
 
 bool SPKTVOne::setHDCPOff() 
@@ -153,8 +154,8 @@ bool SPKTVOne::setHDCPOff()
   ok = ok && command(0, kTV1WindowIDA, kTV1FunctionAdjustOutputsHDCPStatus, 0);
   // Likewise on inputs A and B
   ok = ok && command(0, kTV1WindowIDA, kTV1FunctionAdjustSourceHDCPAdvertize, 0);
-  ok = ok && command(0, kTV1WindowIDA, kTV1FunctionAdjustSourceHDCPAdvertize, 0);
-  ok = ok && command(0, kTV1WindowIDB, kTV1FunctionAdjustSourceHDCPStatus, 0);
+  ok = ok && command(0, kTV1WindowIDB, kTV1FunctionAdjustSourceHDCPAdvertize, 0);
+  ok = ok && command(0, kTV1WindowIDA, kTV1FunctionAdjustSourceHDCPStatus, 0);
   ok = ok && command(0, kTV1WindowIDB, kTV1FunctionAdjustSourceHDCPStatus, 0);
   
   return ok;
@@ -191,6 +192,23 @@ void SPKTVOne::set1600x600(int resStoreNumber)
   command(0, 0, kTV1FunctionAdjustResolutionLines, 628);
   command(0, 0, kTV1FunctionAdjustResolutionSyncH, 192);
   command(0, 0, kTV1FunctionAdjustResolutionSyncV, 14); 
+  command(0, 0, kTV1FunctionAdjustResolutionSyncPolarity, 0);
+}
+
+void SPKTVOne::set2048x768(int resStoreNumber) 
+{
+  command(0, 0, kTV1FunctionAdjustResolutionImageToAdjust, resStoreNumber);
+  command(0, 0, kTV1FunctionAdjustResolutionInterlaced, 0);
+  command(0, 0, kTV1FunctionAdjustResolutionFreqCoarseH, 48363);
+  command(0, 0, kTV1FunctionAdjustResolutionFreqFineH, 48363);
+  command(0, 0, kTV1FunctionAdjustResolutionActiveH, 2048);
+  command(0, 0, kTV1FunctionAdjustResolutionActiveV, 768);
+  command(0, 0, kTV1FunctionAdjustResolutionStartH, 368); 
+  command(0, 0, kTV1FunctionAdjustResolutionStartV, 24); 
+  command(0, 0, kTV1FunctionAdjustResolutionCLKS, 2688); 
+  command(0, 0, kTV1FunctionAdjustResolutionLines, 806);
+  command(0, 0, kTV1FunctionAdjustResolutionSyncH, 224);
+  command(0, 0, kTV1FunctionAdjustResolutionSyncV, 11); 
   command(0, 0, kTV1FunctionAdjustResolutionSyncPolarity, 0);
 }
 

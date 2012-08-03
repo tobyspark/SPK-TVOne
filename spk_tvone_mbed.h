@@ -37,9 +37,9 @@ class SPKTVOne
     bool setHDCPOff();
      
   private:
-    // Tx and Wait LED pins to go here
     void set1920x480(int resStoreNumber);
     void set1600x600(int resStoreNumber);
+    void set2048x768(int resStoreNumber);
     
     Serial *serial;
     Serial *debug; 
