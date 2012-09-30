@@ -34,7 +34,7 @@ class SPKTVOne
     bool command(uint8_t channel, uint8_t window, int32_t func, int32_t payload);
     
     void setCustomResolutions();
-    bool setHDCPOff();
+    bool setHDCPOn(bool state);
      
   private:
     void set1920x480(int resStoreNumber);

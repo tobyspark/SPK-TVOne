@@ -145,18 +145,18 @@ void SPKTVOne::setCustomResolutions()
   set2048x768(kTV1ResolutionDualHeadXGAp60);
 }
 
-bool SPKTVOne::setHDCPOff() 
+bool SPKTVOne::setHDCPOn(bool state) 
 {
   bool ok = false;
 
   // Turn HDCP off on the output
-  ok =       command(0, kTV1WindowIDA, kTV1FunctionAdjustOutputsHDCPRequired, 0);
-  ok = ok && command(0, kTV1WindowIDA, kTV1FunctionAdjustOutputsHDCPStatus, 0);
+  ok =       command(0, kTV1WindowIDA, kTV1FunctionAdjustOutputsHDCPRequired, state);
+  ok = ok && command(0, kTV1WindowIDA, kTV1FunctionAdjustOutputsHDCPStatus, state);
   // Likewise on inputs A and B
-  ok = ok && command(0, kTV1WindowIDA, kTV1FunctionAdjustSourceHDCPAdvertize, 0);
-  ok = ok && command(0, kTV1WindowIDB, kTV1FunctionAdjustSourceHDCPAdvertize, 0);
-  ok = ok && command(0, kTV1WindowIDA, kTV1FunctionAdjustSourceHDCPStatus, 0);
-  ok = ok && command(0, kTV1WindowIDB, kTV1FunctionAdjustSourceHDCPStatus, 0);
+  ok = ok && command(0, kTV1WindowIDA, kTV1FunctionAdjustSourceHDCPAdvertize, state);
+  ok = ok && command(0, kTV1WindowIDB, kTV1FunctionAdjustSourceHDCPAdvertize, state);
+  ok = ok && command(0, kTV1WindowIDA, kTV1FunctionAdjustSourceHDCPStatus, state);
+  ok = ok && command(0, kTV1WindowIDB, kTV1FunctionAdjustSourceHDCPStatus, state);
   
   return ok;
 }
