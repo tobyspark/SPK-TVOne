@@ -25,6 +25,7 @@
 
 #include "spk_tvone.h"
 #include "mbed.h"
+#include "MODSERIAL.h" 
 
 class SPKTVOne
 {
@@ -41,7 +42,7 @@ class SPKTVOne
     void set1600x600(int resStoreNumber);
     void set2048x768(int resStoreNumber);
     
-    Serial *serial;
+    MODSERIAL *serial;
     Serial *debug; 
     
     DigitalOut *writeDO;

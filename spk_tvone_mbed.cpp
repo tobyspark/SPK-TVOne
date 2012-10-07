@@ -27,7 +27,10 @@ SPKTVOne::SPKTVOne(PinName txPin, PinName rxPin, PinName signWritePin, PinName s
 {
     // Create Serial connection for TVOne unit comms
     // Creating our own as this is exclusively for TVOne comms
-    serial = new Serial(txPin, rxPin);
+    // Update - The stock mbed Serial object will hang on rx while tx, which can happen if the TV-One unit's state unexpectedly changes as this is repeated to RS232.
+    // No fixes will fix here, tried every variant of IRQ disable, sprintf and allsuch.
+    // However MODSERIAL doesn't hang, and as a bonus will allow much easier handling of these unexpected 'commands' sent *to* our controller.
+    serial = new MODSERIAL(txPin, rxPin);
     serial->baud(57600);
     
     if (signWritePin != NC) writeDO = new DigitalOut(signWritePin);
