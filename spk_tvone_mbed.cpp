@@ -27,10 +27,7 @@ SPKTVOne::SPKTVOne(PinName txPin, PinName rxPin, PinName signWritePin, PinName s
 {
     // Create Serial connection for TVOne unit comms
     // Creating our own as this is exclusively for TVOne comms
-    // Update - The stock mbed Serial object will hang on rx while tx, which can happen if the TV-One unit's state unexpectedly changes as this is repeated to RS232.
-    // No fixes will fix here, tried every variant of IRQ disable, sprintf and allsuch.
-    // However MODSERIAL doesn't hang, and as a bonus will allow much easier handling of these unexpected 'commands' sent *to* our controller.
-    serial = new MODSERIAL(txPin, rxPin);
+    serial = new Serial(txPin, rxPin);
     serial->baud(57600);
     
     if (signWritePin != NC) writeDO = new DigitalOut(signWritePin);
@@ -96,24 +93,31 @@ bool SPKTVOne::command(uint8_t channel, uint8_t window, int32_t func, int32_t pa
   // 100ms is too slow for us. Going with returning after 30ms if we've received an acknowledgement, returning after 100ms otherwise.
 
   int ack[20];
-    bool ackReceived = false;
-    bool success = false;
+  int safePeriod = 100;
+  int clearPeriod = 30;
+  bool ackReceived = false;
+  bool success = false;
+  Timer timer;
 
-    i = 0;
-    // BARBARIC: Presence of timer was causing hang, and any use of NVIC_DisableIRQ(TIMER3_IRQn) didn't seem to change that.
-    // So here we are stripped of max throughput timing technique, barbarically dependenant a 30ms wait to ensure TV One isn't overloaded and seeing malformed / error acks.
-    wait_ms(30);
-    while (serial->readable()) {
-        ack[i] = serial->getc();
-        i++;
-        if (i >= 20) {
-            ackReceived = true;
-            if (ack[0] == 'F' && ack[1] == '4') { // TVOne start of message, acknowledgement with no error, rest will be repeat of sent command
-                success = true;
+  timer.start();
+  i = 0;
+  while (timer.read_ms() < safePeriod) {
+    if (!ackReceived && serial->readable())
+        {
+            ack[i] = serial->getc();
+            i++;
+            if (i >= 20) 
+            {
+                ackReceived = true;
+                if (ack[0] == 'F' && ack[1] == '4') // TVOne start of message, acknowledgement with no error, rest will be repeat of sent command
+                {
+                    success = true;
+                }
             }
-            break;
         }
-    }
+    if (timer.read_ms() > clearPeriod) break;
+  }
+  timer.stop();
   
   // TASK: Sign end of write
   
@@ -127,8 +131,7 @@ bool SPKTVOne::command(uint8_t channel, uint8_t window, int32_t func, int32_t pa
         }
         
         if (debug) {
-            //debug->printf("Serial command write error. Time from write finish: %ims \r\n", timer.read_ms());
-            debug->printf("Serial command write error.");
+            debug->printf("Serial command write error. Time from write finish: %ims \r\n", timer.read_ms());
         }
   };
 
