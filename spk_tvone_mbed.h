@@ -31,7 +31,11 @@ class SPKTVOne
   public:
     SPKTVOne(PinName txPin, PinName rxPin, PinName signWritePin = NC, PinName signErrorPin = NC, Serial *debugSerial = NULL);
     
+    enum commandType {writeCommand = 0, readCommand = 1};
+    static const int standardAckLength = 20;
+    
     bool command(uint8_t channel, uint8_t window, int32_t func, int32_t payload);
+    bool command(commandType readWrite, int* ackBuffer, int ackLength, uint8_t channel, uint8_t window, int32_t func, int32_t payload);
     
     void setCustomResolutions();
     bool setHDCPOn(bool state);

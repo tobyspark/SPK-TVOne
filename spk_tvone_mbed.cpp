@@ -41,7 +41,16 @@ SPKTVOne::SPKTVOne(PinName txPin, PinName rxPin, PinName signWritePin, PinName s
     debug = debugSerial;
 }
 
-bool SPKTVOne::command(uint8_t channel, uint8_t window, int32_t func, int32_t payload) 
+bool SPKTVOne::command(uint8_t channel, uint8_t window, int32_t func, int32_t payload)
+{
+    int ackBuff[standardAckLength];
+    
+    bool success = command(writeCommand, ackBuff, standardAckLength, channel, window, func, payload);
+    
+    return success;
+}
+
+bool SPKTVOne::command(commandType readWrite, int* ackBuffer, int ackLength, uint8_t channel, uint8_t window, int32_t func, int32_t payload) 
 {
   char i;
   
@@ -59,7 +68,7 @@ bool SPKTVOne::command(uint8_t channel, uint8_t window, int32_t func, int32_t pa
   uint8_t checksum = 0;
 
   // CMD
-  cmd[0] = 1<<2; // write
+  cmd[0] = readWrite<<7 | 1<<2;
   // CHA
   cmd[1] = channel;
   // WINDOW
@@ -76,14 +85,18 @@ bool SPKTVOne::command(uint8_t channel, uint8_t window, int32_t func, int32_t pa
   cmd[7] = payload & 0xFF;
 
   // TASK: Write the bytes of command to RS232 as correctly packaged 20 characters of ASCII
-
-  for (i=0; i<8; i++) 
+  
+  if (readWrite == writeCommand)
   {
-    checksum += cmd[i];
+    for (i=0; i<8; i++) checksum += cmd[i];
+    serial->printf("F%02X%02X%02X%02X%02X%02X%02X%02X%02X\r", cmd[0], cmd[1], cmd[2], cmd[3], cmd[4], cmd[5], cmd[6], cmd[7], checksum);
   }
-  
-  serial->printf("F%02X%02X%02X%02X%02X%02X%02X%02X%02X\r", cmd[0], cmd[1], cmd[2], cmd[3], cmd[4], cmd[5], cmd[6], cmd[7], checksum);
-  
+  if (readWrite == readCommand)
+  {
+    for (i=0; i<5; i++) checksum += cmd[i];
+    serial->printf("F%02X%02X%02X%02X%02X%02X\r", cmd[0], cmd[1], cmd[2], cmd[3], cmd[4], checksum);
+  } 
+   
   // TASK: Check the unit's return string, to enable return to main program as soon as unit is ready
 
   // Handling the timing of this return is critical to effective control.
@@ -91,31 +104,35 @@ bool SPKTVOne::command(uint8_t channel, uint8_t window, int32_t func, int32_t pa
   // TVOne turn out to say that receipt of the ack doesn't guarantee the unit is ready for the next command. 
   // According to the manual, operations typically take 30ms, and to simplify programming you can throttle commands to every 100ms.
   // 100ms is too slow for us. Going with returning after 30ms if we've received an acknowledgement, returning after 100ms otherwise.
-
-  int ack[20];
-  int safePeriod = 100;
-  int clearPeriod = 30;
+  
+  const int safePeriod = 100;
+  const int clearPeriod = 30;
+  
   bool ackReceived = false;
   bool success = false;
   Timer timer;
 
-  timer.start();
   i = 0;
-  while (timer.read_ms() < safePeriod) {
+  timer.start();
+  while (timer.read_ms() < safePeriod) 
+  {
+    if (ackReceived && timer.read_ms() > clearPeriod) 
+    {
+        break;
+    }
     if (!ackReceived && serial->readable())
+    {
+        ackBuffer[i] = serial->getc();
+        i++;
+        if (i == ackLength) 
         {
-            ack[i] = serial->getc();
-            i++;
-            if (i >= 20) 
+            ackReceived = true;
+            if (ackBuffer[0] == 'F' && ackBuffer[1] == '4') // TVOne start of message, acknowledgement with no error, rest will be repeat of sent command
             {
-                ackReceived = true;
-                if (ack[0] == 'F' && ack[1] == '4') // TVOne start of message, acknowledgement with no error, rest will be repeat of sent command
-                {
-                    success = true;
-                }
+                success = true;
             }
         }
-    if (timer.read_ms() > clearPeriod) break;
+    }
   }
   timer.stop();
   

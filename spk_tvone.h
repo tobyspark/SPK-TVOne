@@ -257,6 +257,9 @@
 // Adjust Misc
 //#pragma mark -
 #define kTV1FunctionAdjustFrontPanelLock            0xFC    // Values: 0 = Unlocked, 1 = Locked
+#define kTV1FunctionReadSoftwareVersion             0x0D2
+#define kTV1FunctionReadProductType                 0x0C4
+#define kTV1FunctionReadBoardType                   0x0C2
 
 // Resolutions
 //#pragma mark -
