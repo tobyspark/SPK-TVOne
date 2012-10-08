@@ -96,31 +96,24 @@ bool SPKTVOne::command(uint8_t channel, uint8_t window, int32_t func, int32_t pa
   // 100ms is too slow for us. Going with returning after 30ms if we've received an acknowledgement, returning after 100ms otherwise.
 
   int ack[20];
-  int safePeriod = 100;
-  int clearPeriod = 30;
-  bool ackReceived = false;
-  bool success = false;
-  Timer timer;
+    bool ackReceived = false;
+    bool success = false;
 
-  timer.start();
-  i = 0;
-  while (timer.read_ms() < safePeriod) {
-    if (serial->readable())
-        {
-            ack[i] = serial->getc();
-            i++;
-            if (i >= 20) 
-            {
-                ackReceived = true;
-                if (ack[0] == 'F' && ack[1] == '4') // TVOne start of message, acknowledgement with no error, rest will be repeat of sent command
-                {
-                    success = true;
-                }
+    i = 0;
+    // BARBARIC: Presence of timer was causing hang, and any use of NVIC_DisableIRQ(TIMER3_IRQn) didn't seem to change that.
+    // So here we are stripped of max throughput timing technique, barbarically dependenant a 30ms wait to ensure TV One isn't overloaded and seeing malformed / error acks.
+    wait_ms(30);
+    while (serial->readable()) {
+        ack[i] = serial->getc();
+        i++;
+        if (i >= 20) {
+            ackReceived = true;
+            if (ack[0] == 'F' && ack[1] == '4') { // TVOne start of message, acknowledgement with no error, rest will be repeat of sent command
+                success = true;
             }
+            break;
         }
-    if (ackReceived && (timer.read_ms() > clearPeriod)) break;
-  }
-  timer.stop();
+    }
   
   // TASK: Sign end of write
   
@@ -134,7 +127,8 @@ bool SPKTVOne::command(uint8_t channel, uint8_t window, int32_t func, int32_t pa
         }
         
         if (debug) {
-            debug->printf("Serial command write error. Time from write finish: %ims \r\n", timer.read_ms());
+            //debug->printf("Serial command write error. Time from write finish: %ims \r\n", timer.read_ms());
+            debug->printf("Serial command write error.");
         }
   };
 
