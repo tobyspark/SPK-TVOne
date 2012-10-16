@@ -24,7 +24,7 @@
 #define SPKTVOne_h
 
 // Comment out the following firmware defines as appropriate
-#define kTV1Firmware362
+#define kTV1Firmware415
 
 // Sources - Note only higher end models have more than 2 in....
 //#pragma mark -
