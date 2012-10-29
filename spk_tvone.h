@@ -36,7 +36,8 @@
 #define kTV1SourceRGB4                                0x13 
 #define kTV1SourceRGB5                                0x14 
 #define kTV1SourceRGB6                                0x15 
-
+#define kTV1SourceSIS1                                0xF0
+#define kTV1SourceSIS2                                0xF1
 // Window
 //#pragma mark -
 //#pragma mark Window IDs
@@ -54,10 +55,11 @@
 
 // Preset & Mixer Mode Functions
 #define kTV1FunctionMode                            0x109    // Values: 0 = Switcher, 1 = Independant, 2 = Dual PIP
-#define kTV1FunctionPreset                            0x225    // Values: 0 - 9 (Preset 1 to 10) Set the current preset for the following functions.     
-#define kTV1FunctionPresetLoad                        0x226    // Values: 1 to Load - switches back to 0 after a load
-#define kTV1FunctionPresetStore                        0x227    // Values: 1 to Store - switches back to 0 after a store
-#define kTV1FunctionPresetErase                        0x228    // Values: 1 to Erase - switches back to 0 after erase
+#define kTV1FunctionPreset                          0x225    // Values: 0 - 9 (Preset 1 to 10) Set the current preset for the following functions.     
+#define kTV1FunctionPresetLoad                      0x226    // Values: 1 to Load - switches back to 0 after a load
+#define kTV1FunctionPresetStore                     0x227    // Values: 1 to Store - switches back to 0 after a store
+#define kTV1FunctionPresetErase                     0x228    // Values: 1 to Erase - switches back to 0 after erase
+#define kTV1FunctionPowerOnPresetStore              0x0C8    // Values: 1 to store - switches back to 0 after a store
 
 // Adjust output Functions
 //#pragma mark -
