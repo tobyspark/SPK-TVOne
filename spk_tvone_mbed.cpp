@@ -60,7 +60,7 @@ bool SPKTVOne::command(uint8_t channel, uint8_t window, int32_t func, int32_t pa
     if (payload != payloadBack)
     {
         success = false;
-        if (debug) debug->printf("TVOne return value (%d) is not what was set (%d)", payload, payloadBack); 
+        if (debug) debug->printf("TVOne return value (%d) is not what was set (%d). Channel: %#x, Window: %#x, Function: %#x \r\n", payloadBack, payload, channel, window, func); 
     }
     return success;
 }
@@ -181,7 +181,7 @@ bool SPKTVOne::command(commandType readWrite, int* ackBuffer, int ackLength, uin
         }
         
         if (debug) {
-            debug->printf("Serial command write error. Time from write finish: %ims \r\n", timer.read_ms());
+            debug->printf("TVOne serial error. Time from finishing writing command: %ims \r\n", timer.read_ms());
         }
   };
 
