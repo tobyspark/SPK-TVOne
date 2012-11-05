@@ -36,19 +36,28 @@ class SPKTVOne
     
     bool command(uint8_t channel, uint8_t window, int32_t func, int32_t payload);
     bool readCommand(uint8_t channel, uint8_t window, int32_t func, int32_t &payload);
+    
+    bool uploadEDID(char* edidData, int edidDataLength, int edidSlotIndex);
         
     bool setCustomResolutions();
     bool setHDCPOn(bool state);
+    
+    int timeoutCommandPeriod;
+    int minimumCommandPeriod;
+
+    int  millisSinceLastCommandSent();
      
   private:
     bool command(commandType readWrite, int* ackBuffer, int ackLength, uint8_t channel, uint8_t window, int32_t func, int32_t payload);
-  
+    
     bool set1920x480(int resStoreNumber);
     bool set1600x600(int resStoreNumber);
     bool set2048x768(int resStoreNumber);
     
     Serial *serial;
     Serial *debug; 
+    
+    Timer timer;
     
     DigitalOut *writeDO;
     DigitalOut *errorDO;

@@ -36,6 +36,11 @@ SPKTVOne::SPKTVOne(PinName txPin, PinName rxPin, PinName signWritePin, PinName s
     if (signErrorPin != NC) errorDO = new DigitalOut(signErrorPin);
     else errorDO = NULL;
     
+    timeoutCommandPeriod = 100;
+    minimumCommandPeriod = 30;
+    
+    timer.start();
+    
     // Link up debug Serial object
     // Passing in shared object as debugging is shared between all DVI mixer functions
     debug = debugSerial;
@@ -43,7 +48,7 @@ SPKTVOne::SPKTVOne(PinName txPin, PinName rxPin, PinName signWritePin, PinName s
 
 bool SPKTVOne::command(uint8_t channel, uint8_t window, int32_t func, int32_t payload)
 {
-    int ackBuff[standardAckLength];
+    int ackBuff[standardAckLength] = {0};
     
     bool success = command(writeCommandType, ackBuff, standardAckLength, channel, window, func, payload);
     
@@ -67,7 +72,7 @@ bool SPKTVOne::command(uint8_t channel, uint8_t window, int32_t func, int32_t pa
 
 bool SPKTVOne::readCommand(uint8_t channel, uint8_t window, int32_t func, int32_t &payload)
 {
-    int ackBuff[standardAckLength];
+    int ackBuff[standardAckLength] = {0};
     
     bool success = command(readCommandType, ackBuff, standardAckLength, channel, window, func, payload);
     
@@ -84,15 +89,17 @@ bool SPKTVOne::readCommand(uint8_t channel, uint8_t window, int32_t func, int32_
 }
 
 bool SPKTVOne::command(commandType readWrite, int* ackBuffer, int ackLength, uint8_t channel, uint8_t window, int32_t func, int32_t payload) 
-{
-  char i;
-  
+{ 
+  if (debug) debug->printf("TVOne %s Channel: %#x, Window: %#x, Function: %#x Payload: %i \r\n", (readWrite == writeCommandType) ? "Write" : "Read", channel, window, func, payload);
+
   // TASK: Sign start of serial command write
   if (writeDO) *writeDO = 1;
   
-  // TASK: discard anything waiting to be read
-  while (serial->readable()) {
-    serial->getc();
+  // TASK: Prepare to issue command to the TVOne unit
+  // - discard anything waiting to be read in the return serial buffer
+  // - make sure we're past the minimum time between command sends as the unit can get overloaded
+  while (serial->readable() || timer.read_ms() < minimumCommandPeriod) {
+    if (serial->readable()) serial->getc();
   }
   
   // TASK: Create the bytes of command
@@ -121,12 +128,12 @@ bool SPKTVOne::command(commandType readWrite, int* ackBuffer, int ackLength, uin
   
   if (readWrite == writeCommandType)
   {
-    for (i=0; i<8; i++) checksum += cmd[i];
+    for (int i=0; i<8; i++) checksum += cmd[i];
     serial->printf("F%02X%02X%02X%02X%02X%02X%02X%02X%02X\r", cmd[0], cmd[1], cmd[2], cmd[3], cmd[4], cmd[5], cmd[6], cmd[7], checksum);
   }
   if (readWrite == readCommandType)
   {
-    for (i=0; i<5; i++) checksum += cmd[i];
+    for (int i=0; i<5; i++) checksum += cmd[i];
     serial->printf("F%02X%02X%02X%02X%02X%02X\r", cmd[0], cmd[1], cmd[2], cmd[3], cmd[4], checksum);
   } 
    
@@ -138,36 +145,33 @@ bool SPKTVOne::command(commandType readWrite, int* ackBuffer, int ackLength, uin
   // According to the manual, operations typically take 30ms, and to simplify programming you can throttle commands to every 100ms.
   // 100ms is too slow for us. Going with returning after 30ms if we've received an acknowledgement, returning after 100ms otherwise.
   
-  const int safePeriod = 100;
-  const int clearPeriod = 30;
-  
-  bool ackReceived = false;
-  bool success = false;
-  Timer timer;
+  bool success = false;  
+  int ackPos = 0;
+  timer.reset();
 
-  i = 0;
-  timer.start();
-  while (timer.read_ms() < safePeriod) 
+  while (timer.read_ms() < timeoutCommandPeriod) 
   {
-    if (ackReceived && timer.read_ms() > clearPeriod) 
+    if (serial->readable())
     {
-        break;
-    }
-    if (!ackReceived && serial->readable())
-    {
-        ackBuffer[i] = serial->getc();
-        i++;
-        if (i == ackLength) 
+        if (ackPos == 0)
         {
-            ackReceived = true;
-            if (ackBuffer[0] == 'F' && ackBuffer[1] == '4') // TVOne start of message, acknowledgement with no error, rest will be repeat of sent command
-            {
-                success = true;
-            }
+            ackBuffer[0] = serial->getc();
+            if (ackBuffer[0] == 'F') ackPos = 1;
+        }
+        else
+        {
+            ackBuffer[ackPos] = serial->getc();
+            ackPos++;
+            if (ackPos == ackLength) break;
         }
     }
   }
-  timer.stop();
+  
+  // Return true if we got the no error acknowledgement from the unit. The rest of the ack will be verified elsewhere if needed.
+  if (ackPos > 2 && ackBuffer[1] == '4') 
+  {
+     success = true;
+  }
   
   // TASK: Sign end of write
   
@@ -181,11 +185,21 @@ bool SPKTVOne::command(commandType readWrite, int* ackBuffer, int ackLength, uin
         }
         
         if (debug) {
-            debug->printf("TVOne serial error. Time from finishing writing command: %ims \r\n", timer.read_ms());
+            debug->printf("TVOne serial error. Time from finishing writing command: %ims. Received %i ack chars:", timer.read_ms(), ackPos);
+            for (int i = 0; i<ackLength; i++) 
+            {
+                debug->printf("%c", ackBuffer[i]);
+            }
+            debug->printf("\r\n");
         }
   };
 
   return success;
+}
+
+int  SPKTVOne::millisSinceLastCommandSent()
+{
+    return timer.read_ms();
 }
 
 bool SPKTVOne::setCustomResolutions() 
@@ -295,4 +309,90 @@ bool SPKTVOne::set2048x768(int resStoreNumber)
 
 void SPKTVOne::signErrorOff() {
     *errorDO = 0;
+}
+
+bool SPKTVOne::uploadEDID(char* edidData, int edidDataLength, int edidSlotIndex)
+{
+    // TASK: Upload EDID
+
+    // This command is reverse engineered from a VB snippet and RS232 comms logged between TVOne test app and unit 
+    
+    // To write EDID, its broken into chunks and sent as a series of extra-long commands
+    // Command: 8 bytes of command (see code below) + 32 bytes of EDID payload + End byte
+    // Acknowledgement: 53 02 40 95 (Hex)
+    
+    if (debug) debug->printf("Upload EDID, length %i to index %i \r\n", edidDataLength, edidSlotIndex);
+    
+    bool success = false;
+
+    int commandLength = 8+32+1;
+    int ackLength = 4;
+    char goodAck[] = {0x53, 0x02, 0x40, 0x95};
+    
+    // We want to upload full EDID slot, ie. zero out to 256 even if edidData is only 128bytes.
+    for (int i=0; i<256; i=i+32)
+    {
+        char command[commandLength];
+
+        command[0] = 0x53;
+        command[1] = 0x27;
+        command[2] = 0x22;
+        command[3] = 0x7;
+        command[4] = edidSlotIndex;
+        command[5] = 0;
+        command[6] = i / 32; // ie. chunk index
+        command[7] = 0;
+
+        for (int j=0; j<32; j++)
+        {
+          if (i+j < edidDataLength) 
+            *(command+8+j) = edidData[i+j];
+          else 
+            *(command+8+j) = 0;
+        }
+
+        command[8+32] = 0x3F;
+
+        if (debug)
+        {
+            debug->printf("EDID command: ");
+            for (int k=0; k < commandLength; k++) debug->printf(" %x", command[k]);
+            debug->printf("\r\n");
+        }
+
+        while (serial->readable() || timer.read_ms() < 1000) 
+        {
+           if (serial->readable()) serial->getc();
+        }
+ 
+        for (int k=0; k < commandLength; k++) serial->putc(command[k]);
+        
+        timer.reset();
+        
+        char ackBuffer[4];
+        int  ackPos = 0;
+        while (timer.read_ms() < 1000) 
+        {
+            if (serial->readable()) ackBuffer[ackPos++] = serial->getc();
+            if (ackPos == 4) break;
+        }
+          
+        if (memcmp(ackBuffer, goodAck, ackLength) == 0) 
+        {
+            success = true;
+        }
+        else
+        {
+            success = false;
+            if (debug) 
+            {
+                debug->printf("EDID Part write failed. Ack:");
+                for (int k = 0; k < ackLength; k++) debug->printf(" %x", ackBuffer[k]);
+                debug->printf("\r\n");
+            }
+            break;
+        }
+    }
+    
+    return success;
 }

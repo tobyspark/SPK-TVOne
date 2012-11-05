@@ -23,8 +23,10 @@
 #ifndef SPKTVOne_h
 #define SPKTVOne_h
 
-// Comment out the following firmware defines as appropriate
-#define kTV1Firmware415
+// Uncomment if your 750 has had one of the following firmware updates
+// ie. if you have stock firmware (v265) ensure both are commented.
+//#define kTV1Firmware415
+#define kTV1FirmwareSPKDF
 
 // Sources - Note only higher end models have more than 2 in....
 //#pragma mark -
@@ -38,6 +40,7 @@
 #define kTV1SourceRGB6                                0x15 
 #define kTV1SourceSIS1                                0xF0
 #define kTV1SourceSIS2                                0xF1
+
 // Window
 //#pragma mark -
 //#pragma mark Window IDs
@@ -296,17 +299,36 @@
 #define kTV1ResolutionSGAp60                0x3A                    
 #define kTV1ResolutionSGAp75                0x3B        
 #define kTV1ResolutionWSXGAp60                0x40        
-#define kTV1ResolutionUXGAp60                0x47                    
-#define kTV1ResolutionUXGAp75                0x4A                    
-#define kTV1ResolutionUXGAp85                0x4B
-#define kTV1ResolutionWSXGAPLUSp60     0x53
 
-#ifndef kTV1Firmware362
+#if defined kTV1Firmware415
+ #define kTV1ResolutionUXGAp60                0x47                    
+ #define kTV1ResolutionUXGAp75                0x4A                    
+ #define kTV1ResolutionUXGAp85                0x4B
+ #define kTV1ResolutionWSXGAPLUSp60           0x53
  #define kTV1Resolution1080p60                0x6D
  #define kTV1Resolution1080p75                0x66        
- #define kTV1ResolutionWUXGAp60                0x69                        
- #define kTV1ResolutionWUXGAp75                0x6C                        
- #define kTV1ResolutionWUXGAp85                0x6D
+ #define kTV1ResolutionWUXGAp60               0x69                        
+ #define kTV1ResolutionWUXGAp75               0x6C                        
+ #define kTV1ResolutionWUXGAp85               0x6D
+ 
+#elif defined kTV1FirmwareSPKDF
+ #define kTV1ResolutionUXGAp60                76                    
+ #define kTV1ResolutionUXGAp75                79                    
+ #define kTV1ResolutionUXGAp85                80
+ #define kTV1ResolutionWSXGAPLUSp60           85
+ #define kTV1Resolution1080p60                109
+ #define kTV1Resolution1080p75                112        
+ #define kTV1ResolutionWUXGAp60               115                        
+ #define kTV1ResolutionWUXGAp75               118                        
+ #define kTV1ResolutionWUXGAp85               119
+  
+ #define kTV1ResolutionDualHeadSVGAp60        75        
+ #define kTV1ResolutionDescriptionDualHeadSVGAp60    "Dual Head SVGA (1600x600) @ 60Hz"        
+ #define kTV1ResolutionDualHeadXGAp60         123
+ #define kTV1ResolutionDescriptionDualHeadXGAp60   "Dual Head XGA (2048x768) @ 60 Hz"
+ #define kTV1ResolutionTripleHeadVGAp60        90        
+ #define kTV1ResolutionDescriptionTripleHeadVGAp60    "Triple Head VGA (1920x480) @ 60Hz"
+ 
 #else
  #define kTV1Resolution1080p2398                0x60            
  #define kTV1Resolution1080p24                0x62              
@@ -365,18 +387,5 @@
 #define kTV1ResolutionDescription2Kp60                "2K (2048x1080) @ 60Hz"    
 #define kTV1ResolutionDoubleWXGA            0x73        
 #define kTV1ResolutionDescriptionDoubleWXGA            "DWXGA (2880x900) @ 60Hz"                                        
-
-// Triplehead resolutions
-// Note these are currently either added to the resolution list (#123-125) via CorioTools
-// Previously these were written over existing resolutions (#112-114)
-
-#define kTV1ResolutionDualHeadSVGAp60        0x7B        
-#define kTV1ResolutionDescriptionDualHeadSVGAp60    "Dual Head SVGA (1600x600) @ 60Hz"        
-
-#define kTV1ResolutionDualHeadXGAp60    0x7C
-#define kTV1ResolutionDescriptionDualHeadXGAp60   "Dual Head XGA (2048x768) @ 60 Hz"
-
-#define kTV1ResolutionTripleHeadVGAp60        0x7D        
-#define kTV1ResolutionDescriptionTripleHeadVGAp60    "Triple Head VGA (1920x480) @ 60Hz"    
 
 #endif
