@@ -58,7 +58,7 @@
 
 // Preset & Mixer Mode Functions
 #define kTV1FunctionMode                            0x109    // Values: 0 = Switcher, 1 = Independant, 2 = Dual PIP
-#define kTV1FunctionPreset                          0x225    // Values: 0 - 9 (Preset 1 to 10) Set the current preset for the following functions.     
+#define kTV1FunctionPreset                          0x225    // Values: 0 - 9 (Preset 1 to 10) Set the current preset for the following functions. Update: No! Empirically, values are 1-10.     
 #define kTV1FunctionPresetLoad                      0x226    // Values: 1 to Load - switches back to 0 after a load
 #define kTV1FunctionPresetStore                     0x227    // Values: 1 to Store - switches back to 0 after a store
 #define kTV1FunctionPresetErase                     0x228    // Values: 1 to Erase - switches back to 0 after erase
