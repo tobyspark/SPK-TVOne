@@ -311,56 +311,87 @@ void SPKTVOne::signErrorOff() {
     *errorDO = 0;
 }
 
-bool SPKTVOne::uploadEDID(char* edidData, int edidDataLength, int edidSlotIndex)
+bool SPKTVOne::uploadEDID(FILE *file, int edidSlotIndex)
 {
-    // TASK: Upload EDID
-
-    // This command is reverse engineered from a VB snippet and RS232 comms logged between TVOne test app and unit 
+    bool success;
     
     // To write EDID, its broken into chunks and sent as a series of extra-long commands
     // Command: 8 bytes of command (see code below) + 32 bytes of EDID payload + End byte
     // Acknowledgement: 53 02 40 95 (Hex)
+    // We want to upload full EDID slot, ie. zero out to 256 even if edidData is only 128bytes.
     
-    if (debug) debug->printf("Upload EDID, length %i to index %i \r\n", edidDataLength, edidSlotIndex);
+    if (debug) debug->printf("Upload EDID to index %i \r\n", edidSlotIndex);
+    
+    success = uploadFile(0x07, file, 256, edidSlotIndex);
+    
+    return success;
+}
+
+bool SPKTVOne::uploadImage(FILE *file, int sisIndex)
+{
+    bool success;
+    
+    int imageDataLength = 0;
+    
+    while (fgetc(file) != EOF) imageDataLength++ ;
+    
+    if (debug) debug->printf("Upload Image with length %i to index %i \r\n", imageDataLength, sisIndex);
+    
+    success = uploadFile(0x00, file, imageDataLength, sisIndex);
+    
+    return success;
+}
+
+bool SPKTVOne::uploadFile(char instruction, FILE* file, int dataLength, int index)
+{
+    // TASK: Upload Data
+
+    // This command is reverse engineered. It implements an 'S' command, not the documented 'F'. 
     
     bool success = false;
 
-    int commandLength = 8+32+1;
+    int dataChunkSize = 32;
     int ackLength = 4;
     char goodAck[] = {0x53, 0x02, 0x40, 0x95};
     
-    // We want to upload full EDID slot, ie. zero out to 256 even if edidData is only 128bytes.
-    for (int i=0; i<256; i=i+32)
+    fseek(file, 0, SEEK_SET);
+    
+    for (int i=0; i<dataLength; i=i+dataChunkSize)
     {
+        int dataRemaining = dataLength - i;
+        if (dataRemaining < dataChunkSize) dataChunkSize = dataRemaining;
+    
+        int commandLength = 8+dataChunkSize+1;
         char command[commandLength];
 
         command[0] = 0x53;
-        command[1] = 0x27;
+        command[1] = 6 + dataChunkSize + 1; // Subsequent number of bytes in command
         command[2] = 0x22;
-        command[3] = 0x7;
-        command[4] = edidSlotIndex;
+        command[3] = instruction;
+        command[4] = index;
         command[5] = 0;
-        command[6] = i / 32; // ie. chunk index
-        command[7] = 0;
+        command[6] = (i / dataChunkSize) & 0xFF; // chunk index LSB
+        command[7] = ((i / dataChunkSize) >> 8) & 0xFF; // chunk index MSB
 
-        for (int j=0; j<32; j++)
+        for (int j=0; j<dataChunkSize; j++)
         {
-          if (i+j < edidDataLength) 
-            *(command+8+j) = edidData[i+j];
+          char data = fgetc(file);
+          if (!feof(file)) 
+            *(command+8+j) = data;
           else 
             *(command+8+j) = 0;
         }
 
-        command[8+32] = 0x3F;
+        command[8+dataChunkSize] = 0x3F;
 
         if (debug)
         {
-            debug->printf("EDID command: ");
+            debug->printf("Command: ");
             for (int k=0; k < commandLength; k++) debug->printf(" %x", command[k]);
             debug->printf("\r\n");
         }
 
-        while (serial->readable() || timer.read_ms() < 1000) 
+        while (serial->readable() || timer.read_ms() < 100) 
         {
            if (serial->readable()) serial->getc();
         }
@@ -376,7 +407,7 @@ bool SPKTVOne::uploadEDID(char* edidData, int edidDataLength, int edidSlotIndex)
             if (serial->readable()) ackBuffer[ackPos++] = serial->getc();
             if (ackPos == 4) break;
         }
-          
+
         if (memcmp(ackBuffer, goodAck, ackLength) == 0) 
         {
             success = true;

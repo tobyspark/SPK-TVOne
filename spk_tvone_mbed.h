@@ -37,7 +37,8 @@ class SPKTVOne
     bool command(uint8_t channel, uint8_t window, int32_t func, int32_t payload);
     bool readCommand(uint8_t channel, uint8_t window, int32_t func, int32_t &payload);
     
-    bool uploadEDID(char* edidData, int edidDataLength, int edidSlotIndex);
+    bool uploadEDID(FILE* file, int edidSlotIndex);
+    bool uploadImage(FILE* file, int sisIndex);
         
     bool setCustomResolutions();
     bool setHDCPOn(bool state);
@@ -49,6 +50,7 @@ class SPKTVOne
      
   private:
     bool command(commandType readWrite, int* ackBuffer, int ackLength, uint8_t channel, uint8_t window, int32_t func, int32_t payload);
+    bool uploadFile(char command, FILE* file, int dataLength, int index);
     
     bool set1920x480(int resStoreNumber);
     bool set1600x600(int resStoreNumber);
