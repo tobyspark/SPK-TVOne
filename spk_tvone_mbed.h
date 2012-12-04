@@ -60,6 +60,8 @@ class SPKTVOne
     Serial *debug; 
     
     Timer timer;
+    Ticker timerCheckTicker;
+    void timerCheck();
     
     DigitalOut *writeDO;
     DigitalOut *errorDO;

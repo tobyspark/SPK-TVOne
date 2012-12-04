@@ -40,6 +40,7 @@ SPKTVOne::SPKTVOne(PinName txPin, PinName rxPin, PinName signWritePin, PinName s
     minimumCommandPeriod = 30;
     
     timer.start();
+    timerCheckTicker.attach(this, &SPKTVOne::timerCheck, 60);
     
     // Link up debug Serial object
     // Passing in shared object as debugging is shared between all DVI mixer functions
@@ -309,6 +310,16 @@ bool SPKTVOne::set2048x768(int resStoreNumber)
 
 void SPKTVOne::signErrorOff() {
     *errorDO = 0;
+}
+
+void SPKTVOne::timerCheck() {
+    // timers are based on 32-bit int microsecond counters, so can only time up to a maximum of 2^31-1 microseconds i.e. 30 minutes.
+    // this method is called once a minute, and resets the timer if we've been idle for 25mins.
+    if (timer.read_ms() > 1000*25) 
+    {
+        if (debug) debug->printf("TVOne Timer reset at %ims", timer.read_ms());
+        timer.reset();
+    }
 }
 
 bool SPKTVOne::uploadEDID(FILE *file, int edidSlotIndex)
