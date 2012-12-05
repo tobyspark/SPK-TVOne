@@ -36,8 +36,11 @@ SPKTVOne::SPKTVOne(PinName txPin, PinName rxPin, PinName signWritePin, PinName s
     if (signErrorPin != NC) errorDO = new DigitalOut(signErrorPin);
     else errorDO = NULL;
     
-    timeoutCommandPeriod = 100;
-    minimumCommandPeriod = 30;
+    processor.version = -1;
+    processor.productType = -1;
+    processor.boardType = -1;
+    
+    resetCommandPeriods();
     
     timer.start();
     timerCheckTicker.attach(this, &SPKTVOne::timerCheck, 60);
@@ -99,7 +102,7 @@ bool SPKTVOne::command(commandType readWrite, int* ackBuffer, int ackLength, uin
   // TASK: Prepare to issue command to the TVOne unit
   // - discard anything waiting to be read in the return serial buffer
   // - make sure we're past the minimum time between command sends as the unit can get overloaded
-  while (serial->readable() || timer.read_ms() < minimumCommandPeriod) {
+  while (serial->readable() || timer.read_ms() < commandMinimumPeriod) {
     if (serial->readable()) serial->getc();
   }
   
@@ -150,7 +153,7 @@ bool SPKTVOne::command(commandType readWrite, int* ackBuffer, int ackLength, uin
   int ackPos = 0;
   timer.reset();
 
-  while (timer.read_ms() < timeoutCommandPeriod) 
+  while (timer.read_ms() < commandTimeoutPeriod) 
   {
     if (serial->readable())
     {
@@ -198,12 +201,36 @@ bool SPKTVOne::command(commandType readWrite, int* ackBuffer, int ackLength, uin
   return success;
 }
 
+void SPKTVOne::setCommandTimeoutPeriod(int millis)
+{
+    commandTimeoutPeriod = millis;
+}
+
+void SPKTVOne::setCommandMinimumPeriod(int millis)
+{
+    commandMinimumPeriod = millis;
+}
+
+void SPKTVOne::increaseCommandPeriods(int millis)
+{
+    commandTimeoutPeriod += millis;
+    commandMinimumPeriod += millis;
+    
+    if (debug) debug->printf("Command periods increased; minimum: %i, timeout: %i", commandMinimumPeriod, commandTimeoutPeriod);
+}
+
+void SPKTVOne::resetCommandPeriods()
+{
+    commandTimeoutPeriod = kTV1CommandTimeoutMillis;
+    commandMinimumPeriod = kTV1CommandMinimumMillis;
+}
+
 int  SPKTVOne::millisSinceLastCommandSent()
 {
     return timer.read_ms();
 }
 
-bool SPKTVOne::setCustomResolutions() 
+bool SPKTVOne::uploadCustomResolutions() 
 {
   bool ok = true;;
   int unlocked = 0;
@@ -220,20 +247,67 @@ bool SPKTVOne::setCustomResolutions()
   return ok;
 }
 
+bool SPKTVOne::setResolution(int resolution, int edidSlot)
+{
+    bool ok;
+    
+    int minPeriodOnEntry = commandMinimumPeriod;
+    int outPeriodOnEntry = commandTimeoutPeriod;
+    
+    for (int i=0; i < 3; i++)
+    {
+        ok = command(0, kTV1WindowIDA, kTV1FunctionAdjustOutputsOutputResolution, resolution);
+        
+        if (ok) break;
+        else    increaseCommandPeriods(500);
+    }                
+    commandMinimumPeriod = minPeriodOnEntry;
+    commandTimeoutPeriod = outPeriodOnEntry;
+    if (!ok) return ok;
+
+    for (int i=0; i < 3; i++)
+    {                
+        ok =    command(kTV1SourceRGB1, kTV1WindowIDA, kTV1FunctionAdjustSourceEDID, edidSlot);
+        ok = ok && command(kTV1SourceRGB2, kTV1WindowIDA, kTV1FunctionAdjustSourceEDID, edidSlot);
+        
+        if (ok) break;
+        else    increaseCommandPeriods(500);
+    }                
+    commandMinimumPeriod = minPeriodOnEntry;
+    commandTimeoutPeriod = outPeriodOnEntry;
+    
+    return ok;
+}
+
 bool SPKTVOne::setHDCPOn(bool state) 
 {
-  bool ok;
-
-  // Turn HDCP off on the output
-  ok =       command(0, kTV1WindowIDA, kTV1FunctionAdjustOutputsHDCPRequired, state);
-  ok = ok && command(0, kTV1WindowIDA, kTV1FunctionAdjustOutputsHDCPStatus, state);
-  // Likewise on inputs A and B
-  ok = ok && command(0, kTV1WindowIDA, kTV1FunctionAdjustSourceHDCPAdvertize, state);
-  ok = ok && command(0, kTV1WindowIDB, kTV1FunctionAdjustSourceHDCPAdvertize, state);
-  ok = ok && command(0, kTV1WindowIDA, kTV1FunctionAdjustSourceHDCPStatus, state);
-  ok = ok && command(0, kTV1WindowIDB, kTV1FunctionAdjustSourceHDCPStatus, state);
+    bool ok;
+    
+    int minPeriodOnEntry = commandMinimumPeriod;
+    int outPeriodOnEntry = commandTimeoutPeriod;
+      
+    // HDCP can sometimes take a little time to settle down
+    for (int i=0; i < 3; i++)
+    {
+        // Turn HDCP off on the output
+        ok =       command(0, kTV1WindowIDA, kTV1FunctionAdjustOutputsHDCPRequired, state);
+        
+        // Likewise on inputs A and B
+        ok = ok && command(kTV1SourceRGB1, kTV1WindowIDA, kTV1FunctionAdjustSourceHDCPAdvertize, state);
+        ok = ok && command(kTV1SourceRGB2, kTV1WindowIDA, kTV1FunctionAdjustSourceHDCPAdvertize, state);
+        
+        // Verify (read only, but write command as implemented here will check return value)
+        ok = ok && command(0, kTV1WindowIDA, kTV1FunctionAdjustOutputsHDCPStatus, state);
+        ok = ok && command(kTV1SourceRGB1, kTV1WindowIDA, kTV1FunctionAdjustSourceHDCPStatus, state);
+        ok = ok && command(kTV1SourceRGB2, kTV1WindowIDA, kTV1FunctionAdjustSourceHDCPStatus, state);
+        
+        if (ok) break;
+        else    increaseCommandPeriods(500);
+    }
+    commandMinimumPeriod = minPeriodOnEntry;
+    commandTimeoutPeriod = outPeriodOnEntry;
   
-  return ok;
+    return ok;
 }
 
 bool SPKTVOne::set1920x480(int resStoreNumber) 
@@ -241,21 +315,19 @@ bool SPKTVOne::set1920x480(int resStoreNumber)
   bool ok;
 
   ok = command(0, 0, kTV1FunctionAdjustResolutionImageToAdjust, resStoreNumber);
-  if (ok)
-  {
-      ok = ok && command(0, 0, kTV1FunctionAdjustResolutionInterlaced, 0);
-      ok = ok && command(0, 0, kTV1FunctionAdjustResolutionFreqCoarseH, 31475);
-      ok = ok && command(0, 0, kTV1FunctionAdjustResolutionFreqFineH, 31475);
-      ok = ok && command(0, 0, kTV1FunctionAdjustResolutionActiveH, 1920);
-      ok = ok && command(0, 0, kTV1FunctionAdjustResolutionActiveV, 480);
-      ok = ok && command(0, 0, kTV1FunctionAdjustResolutionStartH, 240); 
-      ok = ok && command(0, 0, kTV1FunctionAdjustResolutionStartV, 5); 
-      ok = ok && command(0, 0, kTV1FunctionAdjustResolutionCLKS, 2400); 
-      ok = ok && command(0, 0, kTV1FunctionAdjustResolutionLines, 525);
-      ok = ok && command(0, 0, kTV1FunctionAdjustResolutionSyncH, 192);
-      ok = ok && command(0, 0, kTV1FunctionAdjustResolutionSyncV, 30); 
-      ok = ok && command(0, 0, kTV1FunctionAdjustResolutionSyncPolarity, 0);
-  }
+
+  ok = ok && command(0, 0, kTV1FunctionAdjustResolutionInterlaced, 0);
+  ok = ok && command(0, 0, kTV1FunctionAdjustResolutionFreqCoarseH, 31475);
+  ok = ok && command(0, 0, kTV1FunctionAdjustResolutionFreqFineH, 31475);
+  ok = ok && command(0, 0, kTV1FunctionAdjustResolutionActiveH, 1920);
+  ok = ok && command(0, 0, kTV1FunctionAdjustResolutionActiveV, 480);
+  ok = ok && command(0, 0, kTV1FunctionAdjustResolutionStartH, 240); 
+  ok = ok && command(0, 0, kTV1FunctionAdjustResolutionStartV, 5); 
+  ok = ok && command(0, 0, kTV1FunctionAdjustResolutionCLKS, 2400); 
+  ok = ok && command(0, 0, kTV1FunctionAdjustResolutionLines, 525);
+  ok = ok && command(0, 0, kTV1FunctionAdjustResolutionSyncH, 192);
+  ok = ok && command(0, 0, kTV1FunctionAdjustResolutionSyncV, 30); 
+  ok = ok && command(0, 0, kTV1FunctionAdjustResolutionSyncPolarity, 0);
   
   return ok;
 }
@@ -265,21 +337,19 @@ bool SPKTVOne::set1600x600(int resStoreNumber)
   bool ok;
 
   ok = command(0, 0, kTV1FunctionAdjustResolutionImageToAdjust, resStoreNumber);
-  if (ok)
-  {
-      ok = ok && command(0, 0, kTV1FunctionAdjustResolutionInterlaced, 0);
-      ok = ok && command(0, 0, kTV1FunctionAdjustResolutionFreqCoarseH, 37879);
-      ok = ok && command(0, 0, kTV1FunctionAdjustResolutionFreqFineH, 37879);
-      ok = ok && command(0, 0, kTV1FunctionAdjustResolutionActiveH, 1600);
-      ok = ok && command(0, 0, kTV1FunctionAdjustResolutionActiveV, 600);
-      ok = ok && command(0, 0, kTV1FunctionAdjustResolutionStartH, 192); 
-      ok = ok && command(0, 0, kTV1FunctionAdjustResolutionStartV, 14); 
-      ok = ok && command(0, 0, kTV1FunctionAdjustResolutionCLKS, 2112); 
-      ok = ok && command(0, 0, kTV1FunctionAdjustResolutionLines, 628);
-      ok = ok && command(0, 0, kTV1FunctionAdjustResolutionSyncH, 160);
-      ok = ok && command(0, 0, kTV1FunctionAdjustResolutionSyncV, 13); 
-      ok = ok && command(0, 0, kTV1FunctionAdjustResolutionSyncPolarity, 0);
-  }
+
+  ok = ok && command(0, 0, kTV1FunctionAdjustResolutionInterlaced, 0);
+  ok = ok && command(0, 0, kTV1FunctionAdjustResolutionFreqCoarseH, 37879);
+  ok = ok && command(0, 0, kTV1FunctionAdjustResolutionFreqFineH, 37879);
+  ok = ok && command(0, 0, kTV1FunctionAdjustResolutionActiveH, 1600);
+  ok = ok && command(0, 0, kTV1FunctionAdjustResolutionActiveV, 600);
+  ok = ok && command(0, 0, kTV1FunctionAdjustResolutionStartH, 192); 
+  ok = ok && command(0, 0, kTV1FunctionAdjustResolutionStartV, 14); 
+  ok = ok && command(0, 0, kTV1FunctionAdjustResolutionCLKS, 2112); 
+  ok = ok && command(0, 0, kTV1FunctionAdjustResolutionLines, 628);
+  ok = ok && command(0, 0, kTV1FunctionAdjustResolutionSyncH, 160);
+  ok = ok && command(0, 0, kTV1FunctionAdjustResolutionSyncV, 13); 
+  ok = ok && command(0, 0, kTV1FunctionAdjustResolutionSyncPolarity, 0);
     
   return ok;
 }
@@ -289,21 +359,19 @@ bool SPKTVOne::set2048x768(int resStoreNumber)
   bool ok;
   
   ok = command(0, 0, kTV1FunctionAdjustResolutionImageToAdjust, resStoreNumber);
-  if (ok)
-  {
-      ok = ok && command(0, 0, kTV1FunctionAdjustResolutionInterlaced, 0);
-      ok = ok && command(0, 0, kTV1FunctionAdjustResolutionFreqCoarseH, 48363);
-      ok = ok && command(0, 0, kTV1FunctionAdjustResolutionFreqFineH, 48363);
-      ok = ok && command(0, 0, kTV1FunctionAdjustResolutionActiveH, 2048);
-      ok = ok && command(0, 0, kTV1FunctionAdjustResolutionActiveV, 768);
-      ok = ok && command(0, 0, kTV1FunctionAdjustResolutionStartH, 224); 
-      ok = ok && command(0, 0, kTV1FunctionAdjustResolutionStartV, 11); 
-      ok = ok && command(0, 0, kTV1FunctionAdjustResolutionCLKS, 2688); 
-      ok = ok && command(0, 0, kTV1FunctionAdjustResolutionLines, 806);
-      ok = ok && command(0, 0, kTV1FunctionAdjustResolutionSyncH, 368);
-      ok = ok && command(0, 0, kTV1FunctionAdjustResolutionSyncV, 24); 
-      ok = ok && command(0, 0, kTV1FunctionAdjustResolutionSyncPolarity, 0);
-  }
+
+  ok = ok && command(0, 0, kTV1FunctionAdjustResolutionInterlaced, 0);
+  ok = ok && command(0, 0, kTV1FunctionAdjustResolutionFreqCoarseH, 48363);
+  ok = ok && command(0, 0, kTV1FunctionAdjustResolutionFreqFineH, 48363);
+  ok = ok && command(0, 0, kTV1FunctionAdjustResolutionActiveH, 2048);
+  ok = ok && command(0, 0, kTV1FunctionAdjustResolutionActiveV, 768);
+  ok = ok && command(0, 0, kTV1FunctionAdjustResolutionStartH, 224); 
+  ok = ok && command(0, 0, kTV1FunctionAdjustResolutionStartV, 11); 
+  ok = ok && command(0, 0, kTV1FunctionAdjustResolutionCLKS, 2688); 
+  ok = ok && command(0, 0, kTV1FunctionAdjustResolutionLines, 806);
+  ok = ok && command(0, 0, kTV1FunctionAdjustResolutionSyncH, 368);
+  ok = ok && command(0, 0, kTV1FunctionAdjustResolutionSyncV, 24); 
+  ok = ok && command(0, 0, kTV1FunctionAdjustResolutionSyncPolarity, 0);
     
   return ok;
 }
@@ -312,10 +380,38 @@ void SPKTVOne::signErrorOff() {
     *errorDO = 0;
 }
 
+SPKTVOne::processorType SPKTVOne::getProcessorType()
+{
+    bool ok;
+    int32_t payload = 0;
+    
+    if (processor.version == -1)
+    {
+        ok = readCommand(0, kTV1WindowIDA, kTV1FunctionReadSoftwareVersion, payload);
+        if (ok && payload > 0) processor.version = payload;
+    }
+    
+    if (processor.productType == -1)
+    {
+    ok = readCommand(0, kTV1WindowIDA, kTV1FunctionReadProductType, payload);
+    if (ok && payload > 0) processor.productType = payload;
+    }
+    
+    if (processor.boardType == -1)
+    {
+        ok = readCommand(0, kTV1WindowIDA, kTV1FunctionReadBoardType, payload);
+        if (ok && payload > 0) processor.boardType = payload;
+    }
+    
+    if (debug) debug->printf("v: %i, p: %i, b: %i", processor.version, processor.productType, processor.boardType);
+    
+    return processor;
+}
+
 void SPKTVOne::timerCheck() {
     // timers are based on 32-bit int microsecond counters, so can only time up to a maximum of 2^31-1 microseconds i.e. 30 minutes.
     // this method is called once a minute, and resets the timer if we've been idle for 25mins.
-    if (timer.read_ms() > 1000*25) 
+    if (timer.read_ms() > 1000*60*25) 
     {
         if (debug) debug->printf("TVOne Timer reset at %ims", timer.read_ms());
         timer.reset();
@@ -357,6 +453,10 @@ bool SPKTVOne::uploadFile(char instruction, FILE* file, int dataLength, int inde
 {
     // TASK: Upload Data
 
+    // Lets be conservative with timings
+    setCommandMinimumPeriod(100);
+    setCommandTimeoutPeriod(300);
+
     // This command is reverse engineered. It implements an 'S' command, not the documented 'F'. 
     
     bool success = false;
@@ -370,13 +470,13 @@ bool SPKTVOne::uploadFile(char instruction, FILE* file, int dataLength, int inde
     for (int i=0; i<dataLength; i=i+dataChunkSize)
     {
         int dataRemaining = dataLength - i;
-        if (dataRemaining < dataChunkSize) dataChunkSize = dataRemaining;
+        int actualDataChunkSize = (dataRemaining < dataChunkSize) ? dataRemaining : dataChunkSize;
     
         int commandLength = 8+dataChunkSize+1;
         char command[commandLength];
 
         command[0] = 0x53;
-        command[1] = 6 + dataChunkSize + 1; // Subsequent number of bytes in command
+        command[1] = 6 + actualDataChunkSize + 1; // Subsequent number of bytes in command
         command[2] = 0x22;
         command[3] = instruction;
         command[4] = index;
@@ -384,7 +484,7 @@ bool SPKTVOne::uploadFile(char instruction, FILE* file, int dataLength, int inde
         command[6] = (i / dataChunkSize) & 0xFF; // chunk index LSB
         command[7] = ((i / dataChunkSize) >> 8) & 0xFF; // chunk index MSB
 
-        for (int j=0; j<dataChunkSize; j++)
+        for (int j=0; j<actualDataChunkSize; j++)
         {
           char data = fgetc(file);
           if (!feof(file)) 
@@ -393,7 +493,7 @@ bool SPKTVOne::uploadFile(char instruction, FILE* file, int dataLength, int inde
             *(command+8+j) = 0;
         }
 
-        command[8+dataChunkSize] = 0x3F;
+        command[8+actualDataChunkSize] = 0x3F;
 
         if (debug)
         {
@@ -402,7 +502,7 @@ bool SPKTVOne::uploadFile(char instruction, FILE* file, int dataLength, int inde
             debug->printf("\r\n");
         }
 
-        while (serial->readable() || timer.read_ms() < 100) 
+        while (serial->readable() || timer.read_ms() < commandMinimumPeriod) 
         {
            if (serial->readable()) serial->getc();
         }
@@ -413,7 +513,7 @@ bool SPKTVOne::uploadFile(char instruction, FILE* file, int dataLength, int inde
         
         char ackBuffer[4];
         int  ackPos = 0;
-        while (timer.read_ms() < 1000) 
+        while (timer.read_ms() < commandTimeoutPeriod) 
         {
             if (serial->readable()) ackBuffer[ackPos++] = serial->getc();
             if (ackPos == 4) break;
@@ -428,13 +528,15 @@ bool SPKTVOne::uploadFile(char instruction, FILE* file, int dataLength, int inde
             success = false;
             if (debug) 
             {
-                debug->printf("EDID Part write failed. Ack:");
+                debug->printf("Data Part write failed. Ack:");
                 for (int k = 0; k < ackLength; k++) debug->printf(" %x", ackBuffer[k]);
                 debug->printf("\r\n");
             }
             break;
         }
     }
+    
+    resetCommandPeriods();
     
     return success;
 }

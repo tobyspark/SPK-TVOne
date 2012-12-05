@@ -37,18 +37,26 @@ class SPKTVOne
     bool command(uint8_t channel, uint8_t window, int32_t func, int32_t payload);
     bool readCommand(uint8_t channel, uint8_t window, int32_t func, int32_t &payload);
     
+    struct processorType {int version; int productType; int boardType;};
+    processorType getProcessorType();
+        
+    bool setResolution(int resolution, int edidSlot);
+    bool setHDCPOn(bool state);
+
     bool uploadEDID(FILE* file, int edidSlotIndex);
     bool uploadImage(FILE* file, int sisIndex);
-        
-    bool setCustomResolutions();
-    bool setHDCPOn(bool state);
+    bool uploadCustomResolutions();
     
-    int timeoutCommandPeriod;
-    int minimumCommandPeriod;
+    void setCommandTimeoutPeriod(int millis);
+    void setCommandMinimumPeriod(int millis);
+    void increaseCommandPeriods(int millis);
+    void resetCommandPeriods();
 
     int  millisSinceLastCommandSent();
      
   private:
+    struct processorType processor;
+    
     bool command(commandType readWrite, int* ackBuffer, int ackLength, uint8_t channel, uint8_t window, int32_t func, int32_t payload);
     bool uploadFile(char command, FILE* file, int dataLength, int index);
     
@@ -58,6 +66,9 @@ class SPKTVOne
     
     Serial *serial;
     Serial *debug; 
+    
+    int commandTimeoutPeriod;
+    int commandMinimumPeriod;
     
     Timer timer;
     Ticker timerCheckTicker;

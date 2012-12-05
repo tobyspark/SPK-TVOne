@@ -28,6 +28,10 @@
 //#define kTV1Firmware415
 #define kTV1FirmwareSPKDF
 
+// Bounding timings for sending RS232 to the unit
+#define kTV1CommandTimeoutMillis 100
+#define kTV1CommandMinimumMillis 30
+
 // Sources - Note only higher end models have more than 2 in....
 //#pragma mark -
 //#pragma mark Channel / Sources
