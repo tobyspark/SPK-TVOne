@@ -80,14 +80,17 @@ bool SPKTVOne::readCommand(uint8_t channel, uint8_t window, int32_t func, int32_
     
     bool success = command(readCommandType, ackBuff, standardAckLength, channel, window, func, payload);
     
-    char payloadStr[7];
-    for (int i = 0; i < 6; i++)
-    {
-        payloadStr[i] = ackBuff[11+i];
+    if (success)
+    {    
+        char payloadStr[7];
+        for (int i = 0; i < 6; i++)
+        {
+            payloadStr[i] = ackBuff[11+i];
+        }
+        payloadStr[6] = NULL;
+        
+        payload = strtol (payloadStr, NULL, 16);
     }
-    payloadStr[6] = NULL;
-    
-    payload = strtol (payloadStr, NULL, 16);
     
     return success;
 }
@@ -172,7 +175,7 @@ bool SPKTVOne::command(commandType readWrite, int* ackBuffer, int ackLength, uin
   }
   
   // Return true if we got the no error acknowledgement from the unit. The rest of the ack will be verified elsewhere if needed.
-  if (ackPos > 2 && ackBuffer[1] == '4') 
+  if (ackPos == ackLength && ackBuffer[1] == '4') 
   {
      success = true;
   }
@@ -295,11 +298,28 @@ bool SPKTVOne::setHDCPOn(bool state)
         // Likewise on inputs A and B
         ok = ok && command(kTV1SourceRGB1, kTV1WindowIDA, kTV1FunctionAdjustSourceHDCPAdvertize, state);
         ok = ok && command(kTV1SourceRGB2, kTV1WindowIDA, kTV1FunctionAdjustSourceHDCPAdvertize, state);
-        
-        // Verify (read only, but write command as implemented here will check return value)
-        ok = ok && command(0, kTV1WindowIDA, kTV1FunctionAdjustOutputsHDCPStatus, state);
-        ok = ok && command(kTV1SourceRGB1, kTV1WindowIDA, kTV1FunctionAdjustSourceHDCPStatus, state);
-        ok = ok && command(kTV1SourceRGB2, kTV1WindowIDA, kTV1FunctionAdjustSourceHDCPStatus, state);
+
+// This verify code is accurate but too misleading for D-Fuser use - eg. actual HDCP state requires source / output connection.      
+//        // Now verify whats actually going on. 
+//        int32_t payload = -1;
+//        ok = ok && readCommand(0, kTV1WindowIDA, kTV1FunctionAdjustOutputsHDCPStatus, payload);
+//        switch (payload) 
+//        {
+//            case 0: ok = ok && !state; break;
+//            case 1: ok = ok && !state; break;
+//            case 2: ok = ok && state; break;
+//            case 3: ok = ok && !state; break;
+//            case 4: ok = ok && state; break;
+//            default: ok = false;
+//        }
+//        
+//        payload = -1;
+//        ok = ok && readCommand(kTV1SourceRGB1, kTV1WindowIDA, kTV1FunctionAdjustSourceHDCPStatus, payload);
+//        ok = ok && (payload == state);
+//        
+//        payload = -1;
+//        ok = ok && readCommand(kTV1SourceRGB2, kTV1WindowIDA, kTV1FunctionAdjustSourceHDCPStatus, payload);
+//        ok = ok && (payload == state);
         
         if (ok) break;
         else    increaseCommandPeriods(500);
