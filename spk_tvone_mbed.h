@@ -48,6 +48,7 @@ class SPKTVOne
     bool uploadCustomResolutions();
     
     void setCommandTimeoutPeriod(int millis);
+    int  getCommandTimeoutPeriod();
     void setCommandMinimumPeriod(int millis);
     void increaseCommandPeriods(int millis);
     void resetCommandPeriods();

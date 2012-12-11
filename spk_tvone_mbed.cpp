@@ -173,7 +173,7 @@ bool SPKTVOne::command(commandType readWrite, int* ackBuffer, int ackLength, uin
         }
     }
   }
-  
+
   // Return true if we got the no error acknowledgement from the unit. The rest of the ack will be verified elsewhere if needed.
   if (ackPos == ackLength && ackBuffer[1] == '4') 
   {
@@ -228,7 +228,12 @@ void SPKTVOne::resetCommandPeriods()
     commandMinimumPeriod = kTV1CommandMinimumMillis;
 }
 
-int  SPKTVOne::millisSinceLastCommandSent()
+int SPKTVOne::getCommandTimeoutPeriod()
+{
+    return commandTimeoutPeriod;
+}
+
+int SPKTVOne::millisSinceLastCommandSent()
 {
     return timer.read_ms();
 }
