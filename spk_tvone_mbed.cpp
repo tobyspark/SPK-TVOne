@@ -255,6 +255,31 @@ bool SPKTVOne::uploadCustomResolutions()
   return ok;
 }
 
+int SPKTVOne::getEDID()
+{
+    bool ok = true;
+
+    int32_t payload1 = -1;
+    ok = ok && readCommand(kTV1SourceRGB1, kTV1WindowIDA, kTV1FunctionAdjustSourceEDID, payload1);
+    
+    int32_t payload2 = -1;
+    ok = ok && readCommand(kTV1SourceRGB2, kTV1WindowIDA, kTV1FunctionAdjustSourceEDID, payload2);
+    
+    int EDID = (payload1 == payload2) ? payload1 : -1;
+    
+    return ok ? EDID : -1;
+}
+
+int SPKTVOne::getResolution()
+{
+    bool ok;
+
+    int32_t payload = -1;
+    ok = readCommand(0, kTV1WindowIDA, kTV1FunctionAdjustOutputsOutputResolution, payload);
+    
+    return ok ? payload : -1;
+}
+
 bool SPKTVOne::setResolution(int resolution, int edidSlot)
 {
     bool ok;

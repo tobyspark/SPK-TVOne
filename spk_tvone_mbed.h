@@ -39,7 +39,9 @@ class SPKTVOne
     
     struct processorType {int version; int productType; int boardType;};
     processorType getProcessorType();
-        
+    
+    int  getResolution();
+    int  getEDID();
     bool setResolution(int resolution, int edidSlot);
     bool setHDCPOn(bool state);
 
