@@ -320,6 +320,13 @@
  #define kTV1ResolutionUXGAp75                79                    
  #define kTV1ResolutionUXGAp85                80
  #define kTV1ResolutionWSXGAPLUSp60           85
+ #define kTV1Resolution1080p2398              99            
+ #define kTV1Resolution1080p24                101              
+ #define kTV1Resolution1080p25                103            
+ #define kTV1Resolution1080p2997              104         
+ #define kTV1Resolution1080p30                105        
+ #define kTV1Resolution1080p50                106        
+ #define kTV1Resolution1080p5996              108  
  #define kTV1Resolution1080p60                109
  #define kTV1Resolution1080p75                112        
  #define kTV1ResolutionWUXGAp60               115                        
