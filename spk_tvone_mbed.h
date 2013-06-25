@@ -40,10 +40,14 @@ class SPKTVOne
     struct processorType {int version; int productType; int boardType;};
     processorType getProcessorType();
     
-    int  getResolution();
+    int  getResolution(int device = 0);
     int  getEDID();
     bool setResolution(int resolution, int edidSlot);
     bool setHDCPOn(bool state);
+    
+    enum aspectType { aspectFit = 1, aspectHFill = 2, aspectVFill = 3, aspect1to1 = 4, aspectSPKFill }; 
+    aspectType getAspect();
+    bool setAspect(aspectType aspect);
 
     bool uploadEDID(FILE* file, int edidSlotIndex);
     bool uploadImage(FILE* file, int sisIndex);
@@ -62,6 +66,8 @@ class SPKTVOne
     
     bool command(commandType readWrite, int* ackBuffer, int ackLength, uint8_t channel, uint8_t window, int32_t func, int32_t payload);
     bool uploadFile(char command, FILE* file, int dataLength, int index);
+    
+    bool getResolutionParams(int resStoreNumber, int &horizpx, int &vertpx);
     
     bool set1920x480(int resStoreNumber);
     bool set1600x600(int resStoreNumber);

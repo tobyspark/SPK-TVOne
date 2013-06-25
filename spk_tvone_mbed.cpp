@@ -270,12 +270,19 @@ int SPKTVOne::getEDID()
     return ok ? EDID : -1;
 }
 
-int SPKTVOne::getResolution()
+int SPKTVOne::getResolution(int device)
 {
-    bool ok;
-
+    bool ok = false;
     int32_t payload = -1;
-    ok = readCommand(0, kTV1WindowIDA, kTV1FunctionAdjustOutputsOutputResolution, payload);
+
+    if (device == 0)
+    {
+        ok = readCommand(0, kTV1WindowIDA, kTV1FunctionAdjustOutputsOutputResolution, payload);
+    }
+    else if (device == kTV1WindowIDA || device == kTV1WindowIDB)
+    {
+        ok = readCommand(0, device, kTV1FunctionAdjustWindowsSourceResolution, payload);
+    }
     
     return ok ? payload : -1;
 }
@@ -357,6 +364,118 @@ bool SPKTVOne::setHDCPOn(bool state)
     commandMinimumPeriod = minPeriodOnEntry;
     commandTimeoutPeriod = outPeriodOnEntry;
   
+    return ok;
+}
+
+bool SPKTVOne::getResolutionParams(int resStoreNumber, int &horizpx, int &vertpx)
+{
+    bool ok;
+    
+    ok = command(0, kTV1WindowIDA, kTV1FunctionAdjustResolutionImageToAdjust, resStoreNumber);
+    
+    ok = ok && readCommand(0, kTV1WindowIDA, kTV1FunctionAdjustResolutionActiveH, horizpx);
+    ok = ok && readCommand(0, kTV1WindowIDA, kTV1FunctionAdjustResolutionActiveV, vertpx);
+    
+    return ok;
+}
+
+SPKTVOne::aspectType SPKTVOne::getAspect()
+{
+    aspectType aspect = aspectFit;;
+
+    int32_t payload1 = -1;
+    readCommand(kTV1SourceRGB1, kTV1WindowIDA, kTV1FunctionAdjustSourceAspectCorrect, payload1);
+  
+    int32_t payload2 = -1;
+    readCommand(kTV1SourceRGB2, kTV1WindowIDA, kTV1FunctionAdjustSourceAspectCorrect, payload2);
+    
+    if (payload1 == payload2) 
+    {
+        if (payload1 == aspectFit)   aspect = aspectFit;
+        if (payload1 == aspectHFill) aspect = aspectSPKFill;
+        if (payload1 == aspectVFill) aspect = aspectSPKFill;
+        if (payload1 == aspect1to1)  aspect = aspect1to1;
+    }
+    else if (((payload1 == aspectHFill) && (payload2 == aspectVFill)) || ((payload2 == aspectHFill) && (payload1 == aspectVFill)))
+    {
+        aspect = aspectSPKFill;
+    }
+    else 
+    {
+        if (debug) debug->printf("SPKTVOne:getAspect got unknown aspect");
+    }
+    
+    return aspect;
+}
+
+bool SPKTVOne::setAspect(aspectType aspect)
+{
+    bool ok = true;
+    aspectType aspectFor1 = aspect;
+    aspectType aspectFor2 = aspect;
+    
+    if (aspect == aspectSPKFill)
+    {
+        int resNumberOutput = getResolution();
+        int horizOutput = 0;
+        int vertOutput = 0;
+        getResolutionParams(resNumberOutput, horizOutput, vertOutput);
+        
+        if (resNumberOutput != -1)
+        {
+            float aspectOutput = (float)horizOutput / (float)vertOutput;
+            
+            int sourceForWindowA = -1;
+            int sourceForWindowB = -1;
+            readCommand(0, kTV1WindowIDA, kTV1FunctionAdjustWindowsWindowSource, sourceForWindowA);
+            readCommand(0, kTV1WindowIDB, kTV1FunctionAdjustWindowsWindowSource, sourceForWindowB); 
+            
+            int windowForRGB1 = -1;
+            int windowForRGB2 = -1;
+            switch (sourceForWindowA)
+            {
+                case kTV1SourceRGB1: windowForRGB1 = kTV1WindowIDA; break;
+                case kTV1SourceRGB2: windowForRGB2 = kTV1WindowIDA; break;
+            }
+            switch (sourceForWindowB)
+            {
+                case kTV1SourceRGB1: windowForRGB1 = kTV1WindowIDB; break;
+                case kTV1SourceRGB2: windowForRGB2 = kTV1WindowIDB; break;
+            }
+            
+            if ((windowForRGB1 != -1))
+            {
+                int resNumber1 = getResolution(windowForRGB1);
+                int horiz1 = 0;
+                int vert1 = 0;
+                getResolutionParams(resNumber1, horiz1, vert1);
+                float aspect1 = (float)horiz1 / (float)vert1;   
+                aspectFor1 = aspectOutput > aspect1 ? aspectHFill : aspectVFill;
+            }
+            else
+            {
+                aspectFor1 = aspectHFill;
+            }
+            
+            if (windowForRGB2 != -1)
+            {
+                int resNumber2 = getResolution(windowForRGB2);
+                int horiz2 = 0;
+                int vert2 = 0;
+                getResolutionParams(resNumber2, horiz2, vert2);
+                float aspect2 = (float)horiz2 / (float)vert2;
+                aspectFor2 = aspectOutput > aspect2 ? aspectHFill : aspectVFill;
+            }
+            else
+            {
+                aspectFor2 = aspectHFill;
+            }
+        }
+    }
+        
+    ok = ok && command(kTV1SourceRGB1, kTV1WindowIDA, kTV1FunctionAdjustSourceAspectCorrect, aspectFor1);
+    ok = ok && command(kTV1SourceRGB2, kTV1WindowIDA, kTV1FunctionAdjustSourceAspectCorrect, aspectFor2);
+    
     return ok;
 }
 
