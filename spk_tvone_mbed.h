@@ -51,7 +51,7 @@ class SPKTVOne
 
     bool uploadEDID(FILE* file, int edidSlotIndex);
     bool uploadImage(FILE* file, int sisIndex);
-    bool uploadCustomResolutions();
+    bool setMatroxResolutions(bool digitalEdition = true);
     
     void setCommandTimeoutPeriod(int millis);
     int  getCommandTimeoutPeriod();
@@ -71,7 +71,7 @@ class SPKTVOne
     
     bool set1920x480(int resStoreNumber);
     bool set1600x600(int resStoreNumber);
-    bool set2048x768(int resStoreNumber);
+    bool set2048x768(int resStoreNumber, bool digitalEdition);
     
     Serial *serial;
     Serial *debug; 

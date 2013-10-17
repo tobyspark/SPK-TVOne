@@ -257,8 +257,8 @@
 #define kTV1FunctionAdjustResolutionActiveV            0x97    // Values: 64 - 2047
 #define kTV1FunctionAdjustResolutionStartH            0x8B    // Values: 0 - 1023
 #define kTV1FunctionAdjustResolutionStartV            0x8C    // Values: 0 - 1023
-#define kTV1FunctionAdjustResolutionCLKS            0x8E    // Values: 64 - 4095
-#define kTV1FunctionAdjustResolutionLines            0xBE    // Values: 64 - 2047
+#define kTV1FunctionAdjustResolutionCLKS            0x8D    // Values: 64 - 4095
+#define kTV1FunctionAdjustResolutionLines            0x8E    // Values: 64 - 2047
 #define kTV1FunctionAdjustResolutionSyncH            0x8F    // Values: 8 - 1023
 #define kTV1FunctionAdjustResolutionSyncV            0x90    // Values: 1 - 1023
 #define kTV1FunctionAdjustResolutionSyncPolarity    0x94    // Values: 0 - 3 (++, +-. -+. --)

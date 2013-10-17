@@ -238,19 +238,21 @@ int SPKTVOne::millisSinceLastCommandSent()
     return timer.read_ms();
 }
 
-bool SPKTVOne::uploadCustomResolutions() 
+bool SPKTVOne::setMatroxResolutions(bool digitalEdition) 
 {
-  bool ok = true;;
+  bool lock = true;
+  bool ok = true;
   int unlocked = 0;
   int locked = 1;
   
-  ok = ok && command(0, 0, kTV1FunctionAdjustFrontPanelLock, locked);
+  lock = lock && command(0, kTV1WindowIDA, kTV1FunctionAdjustFrontPanelLock, locked);
   
-  ok = ok && set1920x480(kTV1ResolutionTripleHeadVGAp60);
-  ok = ok && set1600x600(kTV1ResolutionDualHeadSVGAp60);
-  ok = ok && set2048x768(kTV1ResolutionDualHeadXGAp60);
+  // TODO: Any other resolutions that have different timings between analogue and digital editions of the matrox boxes.
+  // ok = ok && set1920x480(kTV1ResolutionTripleHeadVGAp60);
+  // ok = ok && set1600x600(kTV1ResolutionDualHeadSVGAp60);
+  ok = ok && set2048x768(kTV1ResolutionDualHeadXGAp60, digitalEdition);
   
-  ok = ok && command(0, 0, kTV1FunctionAdjustFrontPanelLock, unlocked);
+  lock = lock && command(0, kTV1WindowIDA, kTV1FunctionAdjustFrontPanelLock, unlocked);
   
   return ok;
 }
@@ -483,20 +485,20 @@ bool SPKTVOne::set1920x480(int resStoreNumber)
 {
   bool ok;
 
-  ok = command(0, 0, kTV1FunctionAdjustResolutionImageToAdjust, resStoreNumber);
+  ok = command(0, kTV1WindowIDA, kTV1FunctionAdjustResolutionImageToAdjust, resStoreNumber);
 
-  ok = ok && command(0, 0, kTV1FunctionAdjustResolutionInterlaced, 0);
-  ok = ok && command(0, 0, kTV1FunctionAdjustResolutionFreqCoarseH, 31475);
-  ok = ok && command(0, 0, kTV1FunctionAdjustResolutionFreqFineH, 31475);
-  ok = ok && command(0, 0, kTV1FunctionAdjustResolutionActiveH, 1920);
-  ok = ok && command(0, 0, kTV1FunctionAdjustResolutionActiveV, 480);
-  ok = ok && command(0, 0, kTV1FunctionAdjustResolutionStartH, 240); 
-  ok = ok && command(0, 0, kTV1FunctionAdjustResolutionStartV, 5); 
-  ok = ok && command(0, 0, kTV1FunctionAdjustResolutionCLKS, 2400); 
-  ok = ok && command(0, 0, kTV1FunctionAdjustResolutionLines, 525);
-  ok = ok && command(0, 0, kTV1FunctionAdjustResolutionSyncH, 192);
-  ok = ok && command(0, 0, kTV1FunctionAdjustResolutionSyncV, 30); 
-  ok = ok && command(0, 0, kTV1FunctionAdjustResolutionSyncPolarity, 0);
+  ok = ok && command(0, kTV1WindowIDA, kTV1FunctionAdjustResolutionInterlaced, 0);
+  ok = ok && command(0, kTV1WindowIDA, kTV1FunctionAdjustResolutionFreqCoarseH, 31475);
+  ok = ok && command(0, kTV1WindowIDA, kTV1FunctionAdjustResolutionFreqFineH, 31475);
+  ok = ok && command(0, kTV1WindowIDA, kTV1FunctionAdjustResolutionActiveH, 1920);
+  ok = ok && command(0, kTV1WindowIDA, kTV1FunctionAdjustResolutionActiveV, 480);
+  ok = ok && command(0, kTV1WindowIDA, kTV1FunctionAdjustResolutionStartH, 240); 
+  ok = ok && command(0, kTV1WindowIDA, kTV1FunctionAdjustResolutionStartV, 5); 
+  ok = ok && command(0, kTV1WindowIDA, kTV1FunctionAdjustResolutionCLKS, 2400); 
+  ok = ok && command(0, kTV1WindowIDA, kTV1FunctionAdjustResolutionLines, 525);
+  ok = ok && command(0, kTV1WindowIDA, kTV1FunctionAdjustResolutionSyncH, 192);
+  ok = ok && command(0, kTV1WindowIDA, kTV1FunctionAdjustResolutionSyncV, 30); 
+  ok = ok && command(0, kTV1WindowIDA, kTV1FunctionAdjustResolutionSyncPolarity, 0);
   
   return ok;
 }
@@ -505,42 +507,42 @@ bool SPKTVOne::set1600x600(int resStoreNumber)
 {
   bool ok;
 
-  ok = command(0, 0, kTV1FunctionAdjustResolutionImageToAdjust, resStoreNumber);
+  ok = command(0, kTV1WindowIDA, kTV1FunctionAdjustResolutionImageToAdjust, resStoreNumber);
 
-  ok = ok && command(0, 0, kTV1FunctionAdjustResolutionInterlaced, 0);
-  ok = ok && command(0, 0, kTV1FunctionAdjustResolutionFreqCoarseH, 37879);
-  ok = ok && command(0, 0, kTV1FunctionAdjustResolutionFreqFineH, 37879);
-  ok = ok && command(0, 0, kTV1FunctionAdjustResolutionActiveH, 1600);
-  ok = ok && command(0, 0, kTV1FunctionAdjustResolutionActiveV, 600);
-  ok = ok && command(0, 0, kTV1FunctionAdjustResolutionStartH, 192); 
-  ok = ok && command(0, 0, kTV1FunctionAdjustResolutionStartV, 14); 
-  ok = ok && command(0, 0, kTV1FunctionAdjustResolutionCLKS, 2112); 
-  ok = ok && command(0, 0, kTV1FunctionAdjustResolutionLines, 628);
-  ok = ok && command(0, 0, kTV1FunctionAdjustResolutionSyncH, 160);
-  ok = ok && command(0, 0, kTV1FunctionAdjustResolutionSyncV, 13); 
-  ok = ok && command(0, 0, kTV1FunctionAdjustResolutionSyncPolarity, 0);
+  ok = ok && command(0, kTV1WindowIDA, kTV1FunctionAdjustResolutionInterlaced, 0);
+  ok = ok && command(0, kTV1WindowIDA, kTV1FunctionAdjustResolutionFreqCoarseH, 37879);
+  ok = ok && command(0, kTV1WindowIDA, kTV1FunctionAdjustResolutionFreqFineH, 37879);
+  ok = ok && command(0, kTV1WindowIDA, kTV1FunctionAdjustResolutionActiveH, 1600);
+  ok = ok && command(0, kTV1WindowIDA, kTV1FunctionAdjustResolutionActiveV, 600);
+  ok = ok && command(0, kTV1WindowIDA, kTV1FunctionAdjustResolutionStartH, 192); 
+  ok = ok && command(0, kTV1WindowIDA, kTV1FunctionAdjustResolutionStartV, 14); 
+  ok = ok && command(0, kTV1WindowIDA, kTV1FunctionAdjustResolutionCLKS, 2112); 
+  ok = ok && command(0, kTV1WindowIDA, kTV1FunctionAdjustResolutionLines, 628);
+  ok = ok && command(0, kTV1WindowIDA, kTV1FunctionAdjustResolutionSyncH, 160);
+  ok = ok && command(0, kTV1WindowIDA, kTV1FunctionAdjustResolutionSyncV, 13); 
+  ok = ok && command(0, kTV1WindowIDA, kTV1FunctionAdjustResolutionSyncPolarity, 0);
     
   return ok;
 }
 
-bool SPKTVOne::set2048x768(int resStoreNumber) 
+bool SPKTVOne::set2048x768(int resStoreNumber, bool de)
 {
   bool ok;
   
-  ok = command(0, 0, kTV1FunctionAdjustResolutionImageToAdjust, resStoreNumber);
+  ok = command(0, kTV1WindowIDA, kTV1FunctionAdjustResolutionImageToAdjust, resStoreNumber);
 
-  ok = ok && command(0, 0, kTV1FunctionAdjustResolutionInterlaced, 0);
-  ok = ok && command(0, 0, kTV1FunctionAdjustResolutionFreqCoarseH, 48363);
-  ok = ok && command(0, 0, kTV1FunctionAdjustResolutionFreqFineH, 48363);
-  ok = ok && command(0, 0, kTV1FunctionAdjustResolutionActiveH, 2048);
-  ok = ok && command(0, 0, kTV1FunctionAdjustResolutionActiveV, 768);
-  ok = ok && command(0, 0, kTV1FunctionAdjustResolutionStartH, 224); 
-  ok = ok && command(0, 0, kTV1FunctionAdjustResolutionStartV, 11); 
-  ok = ok && command(0, 0, kTV1FunctionAdjustResolutionCLKS, 2688); 
-  ok = ok && command(0, 0, kTV1FunctionAdjustResolutionLines, 806);
-  ok = ok && command(0, 0, kTV1FunctionAdjustResolutionSyncH, 368);
-  ok = ok && command(0, 0, kTV1FunctionAdjustResolutionSyncV, 24); 
-  ok = ok && command(0, 0, kTV1FunctionAdjustResolutionSyncPolarity, 0);
+  ok = ok && command(0, kTV1WindowIDA, kTV1FunctionAdjustResolutionInterlaced, 0);
+  ok = ok && command(0, kTV1WindowIDA, kTV1FunctionAdjustResolutionFreqCoarseH, 48363);
+  ok = ok && command(0, kTV1WindowIDA, kTV1FunctionAdjustResolutionFreqFineH, 48363);
+  ok = ok && command(0, kTV1WindowIDA, kTV1FunctionAdjustResolutionActiveH, 2048);
+  ok = ok && command(0, kTV1WindowIDA, kTV1FunctionAdjustResolutionActiveV, 768);
+  ok = ok && command(0, kTV1WindowIDA, kTV1FunctionAdjustResolutionStartH, de ? 224 : 152); 
+  ok = ok && command(0, kTV1WindowIDA, kTV1FunctionAdjustResolutionStartV, de ? 11 : 20); 
+  ok = ok && command(0, kTV1WindowIDA, kTV1FunctionAdjustResolutionCLKS, de ? 2688 : 2352); 
+  ok = ok && command(0, kTV1WindowIDA, kTV1FunctionAdjustResolutionLines, de ? 806 : 806);
+  ok = ok && command(0, kTV1WindowIDA, kTV1FunctionAdjustResolutionSyncH, de ? 368 : 64);
+  ok = ok && command(0, kTV1WindowIDA, kTV1FunctionAdjustResolutionSyncV, de ? 24 : 15); 
+  ok = ok && command(0, kTV1WindowIDA, kTV1FunctionAdjustResolutionSyncPolarity, 3);
     
   return ok;
 }
